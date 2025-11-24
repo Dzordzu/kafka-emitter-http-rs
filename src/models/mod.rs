@@ -14,7 +14,7 @@ pub fn default_brokers() -> String {
 }
 
 pub fn default_topic() -> String {
-    std::env::var(crate::DEFAULT_BROKERS_ENV).unwrap_or("default".into())
+    std::env::var(crate::DEFAULT_TOPIC_ENV).unwrap_or("default".into())
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

@@ -41,6 +41,7 @@ async fn send(
 
     if params.ssl {
         config.set("security.protocol", "ssl");
+        config.set("enable.ssl.certificate.verification", "false");
     }
 
     let producer: FutureProducer = config.create().expect("Producer creation failed");

@@ -105,6 +105,7 @@ pub async fn consumer_loop(
 
     if cfg.ssl {
         config.set("security.protocol", "ssl");
+        config.set("enable.ssl.certificate.verification", "false");
     }
 
     if offset_reset {
