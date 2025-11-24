@@ -1,0 +1,118 @@
+use crate::AppData;
+use crate::models::{
+    BeginResponse, EndRequest, EndResponse, Insights, InsightsRequest, NewExperiment,
+    RestoreExperiment,
+};
+use actix_web::{Responder, delete, get, post, web};
+use uuid::Uuid;
+
+#[utoipa::path(
+    tag = "experiment",
+    responses(
+        (status = 200, description = "ID of the experiment", body = BeginResponse)
+    )
+)]
+#[post("/")]
+/// Create a new experiment
+async fn begin(body: web::Json<NewExperiment>, data: web::Data<AppData>) -> impl Responder {
+    let experiment_uuid = uuid::Uuid::new_v4();
+
+    {
+        let mut data = data.app_state.lock().await;
+
+        data.new_experiment(experiment_uuid.clone(), body.listeners.clone())
+            .await;
+    }
+
+    web::Json(BeginResponse { experiment_uuid })
+}
+
+#[utoipa::path(
+    tag = "experiment",
+    responses(
+        (status = 200, description = "ID of the experiment", body = BeginResponse)
+    )
+)]
+#[post("/restore")]
+/// Restore existing experiment. Tries to read messages from the start
+async fn restore(body: web::Json<RestoreExperiment>, data: web::Data<AppData>) -> impl Responder {
+    let mut data = data.app_state.lock().await;
+    let experiment_uuid = body.experiment_uuid;
+
+    data.restore_experiment(experiment_uuid, body.listeners.clone())
+        .await;
+
+    web::Json(BeginResponse { experiment_uuid })
+}
+
+#[utoipa::path(
+    tag = "experiment",
+    responses(
+        (status = 200, description = "Delete all experiment data", body = BeginResponse)
+    )
+)]
+#[delete("/")]
+/// Delete experiment and its data
+async fn end(body: web::Json<EndRequest>, data: web::Data<AppData>) -> impl Responder {
+    let experiment_uuid = body.0.experiment_uuid;
+
+    {
+        let mut data = data.app_state.lock().await;
+        data.end_experiment(experiment_uuid.clone()).await;
+    }
+
+    web::Json(EndResponse { experiment_uuid })
+}
+
+#[utoipa::path(
+    tag = "experiment",
+    responses(
+        (status = 200, description = "List of registered experiments", body = Vec<Uuid>)
+    )
+)]
+#[get("/list")]
+/// Get all registered experiments
+async fn list_experiments(data: web::Data<AppData>) -> impl Responder {
+    let experiments = {
+        data.app_state
+            .lock()
+            .await
+            .messages_state
+            .clone()
+            .lock()
+            .await
+            .experiments
+            .clone()
+    };
+
+    web::Json(experiments.keys().cloned().collect::<Vec<Uuid>>())
+}
+
+#[utoipa::path(
+    tag = "experiment",
+    params(
+        InsightsRequest
+    ),
+    responses(
+        (status = 200, description = "Get list of ", body = Insights)
+    )
+)]
+#[get("/insights")]
+/// Get all the details of the experiment
+async fn get_insights(
+    params: web::Query<InsightsRequest>,
+    data: web::Data<AppData>,
+) -> actix_web::Result<web::Json<Insights>> {
+    let (experiment, messages, events) = data
+        .experiment_related_data(&params.0.experiment_uuid)
+        .await
+        .ok_or(actix_web::error::ErrorNotFound("Experiment not found"))?;
+
+    let messages = messages.0.into_values().collect();
+
+    Ok(web::Json(Insights {
+        messages,
+        experiment,
+        events,
+    }))
+}

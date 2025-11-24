@@ -1,0 +1,4 @@
+kafka:
+  clusters:
+    - name: local  # Unique name identifier for the Kafka cluster
+      bootstrap-servers: kafka:9093
