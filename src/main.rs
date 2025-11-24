@@ -129,7 +129,7 @@ async fn main() -> std::io::Result<()> {
 
         api.info.contact = None;
         api.info.license = None;
-        api.info.version = std::env::var("CARGO_PKG_VERSION").unwrap();
+        api.info.version = std::option_env!("CARGO_PKG_VERSION").unwrap().into();
 
         let experiments_tag = TagBuilder::new()
             .name("experiment")
