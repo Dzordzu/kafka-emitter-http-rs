@@ -106,6 +106,8 @@ async fn main() -> std::io::Result<()> {
         let (app, mut api) = App::new()
             .app_data(app_data.clone())
             .into_utoipa_app()
+            .service(routes::ready)
+            .service(routes::health)
             .service(
                 scope::scope("/experiment")
                     .service(routes::experiment::begin)
