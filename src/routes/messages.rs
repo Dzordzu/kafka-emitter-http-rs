@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use actix_web::{post, web};
 use rand::Rng;
 use rdkafka::{

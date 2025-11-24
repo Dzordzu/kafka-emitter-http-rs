@@ -20,7 +20,7 @@ async fn begin(body: web::Json<NewExperiment>, data: web::Data<AppData>) -> impl
     {
         let mut data = data.app_state.lock().await;
 
-        data.new_experiment(experiment_uuid.clone(), body.listeners.clone())
+        data.new_experiment(experiment_uuid, body.listeners.clone())
             .await;
     }
 
@@ -58,7 +58,7 @@ async fn end(body: web::Json<EndRequest>, data: web::Data<AppData>) -> impl Resp
 
     {
         let mut data = data.app_state.lock().await;
-        data.end_experiment(experiment_uuid.clone()).await;
+        data.end_experiment(experiment_uuid).await;
     }
 
     web::Json(EndResponse { experiment_uuid })

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::models::{EventType, measurements::*};
-use actix_web::{Responder, get, post, web};
+use actix_web::{post, web};
 
 use crate::AppData;
 

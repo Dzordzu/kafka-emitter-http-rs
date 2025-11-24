@@ -2,7 +2,7 @@ use crate::models::KafkaBrokerCfg;
 use crate::models::{EventType, Message, MessageEvent};
 use crate::state::MessagesState;
 use crate::{EXPERIMENT_UUID_HEADER, MESSAGE_UUID_HEADER, get_now_millis};
-use rdkafka::consumer::{CommitMode, Consumer as _};
+use rdkafka::consumer::Consumer as _;
 use rdkafka::message::{Headers, Message as _};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -66,7 +66,7 @@ impl Consumers {
         let handle = tokio::spawn(async move { consumer_loop(cfg, events, offset_reset).await })
             .abort_handle();
 
-        let vec_of_handles = self.loops.handles.entry(uuid.clone()).or_insert(vec![]);
+        let vec_of_handles = self.loops.handles.entry(uuid).or_default();
         vec_of_handles.push(handle);
 
         self
@@ -128,11 +128,7 @@ pub async fn consumer_loop(
                     headers
                         .iter()
                         .filter_map(|header| {
-                            let value = header
-                                .value
-                                .map(std::str::from_utf8)
-                                .map(|x| x.ok())
-                                .flatten();
+                            let value = header.value.map(std::str::from_utf8).and_then(|x| x.ok());
 
                             value.map(|x| (header.key.to_string(), x.to_string()))
                         })
@@ -148,12 +144,12 @@ pub async fn consumer_loop(
                 {
                     let mut state = state.lock().await;
 
-                    if state.messages.get(&message_uuid).is_none()
+                    if (!state.messages.contains_key(&message_uuid))
                         && state.experiments.contains_key(&experiment_uuid)
                     {
                         state.insert_message(
                             Message {
-                                uuid: message_uuid.clone(),
+                                uuid: message_uuid,
                                 bytes_size: bytesize::ByteSize::b(m.payload_len() as u64).into(),
                             },
                             experiment_uuid,
@@ -168,12 +164,11 @@ pub async fn consumer_loop(
                         })
                     {
                         let experiment_uuid = {
-                            state
+                            *state
                                 .idx_message_to_experiment
                                 .0
                                 .get(&message_uuid)
                                 .unwrap()
-                                .clone()
                         };
 
                         let events = state.events.entry(experiment_uuid).or_default();

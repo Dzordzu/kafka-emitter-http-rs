@@ -39,27 +39,33 @@ pub struct MessagesState {
 
 impl MessagesState {
     pub fn insert_message(&mut self, message: Message, experiment_uuid: Uuid) {
-        if self.experiments.get(&experiment_uuid).is_some() {
+        if self.experiments.contains_key(&experiment_uuid) {
             self.idx_message_to_experiment
                 .0
-                .insert(message.uuid.clone(), experiment_uuid.clone());
+                .insert(message.uuid, experiment_uuid);
 
             self.idx_experiment_to_messages
                 .0
-                .entry(experiment_uuid.clone())
-                .or_insert(Vec::new())
-                .push(message.uuid.clone());
+                .entry(experiment_uuid)
+                .or_default()
+                .push(message.uuid);
 
             self.messages
-                .entry(experiment_uuid.clone())
+                .entry(experiment_uuid)
                 .or_default()
                 .0
-                .insert(message.uuid.clone(), message);
+                .insert(message.uuid, message);
 
             self.events.entry(experiment_uuid).or_default();
         } else {
             tracing::warn!("Unknown experiment: {experiment_uuid}");
         }
+    }
+}
+
+impl Default for State {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -80,14 +86,15 @@ impl State {
         info!("Starting new experiment with uuid {}", uuid);
 
         {
-            self.messages_state.lock().await.experiments.insert(
-                uuid.clone(),
-                Experiment::new(uuid.clone(), consumers.clone()),
-            );
+            self.messages_state
+                .lock()
+                .await
+                .experiments
+                .insert(uuid, Experiment::new(uuid, consumers.clone()));
         }
 
         for consumer in consumers {
-            self.consumers.start(uuid.clone(), consumer, false).await;
+            self.consumers.start(uuid, consumer, false).await;
         }
 
         self
@@ -101,14 +108,15 @@ impl State {
         info!("Starting new experiment with uuid {}", uuid);
 
         {
-            self.messages_state.lock().await.experiments.insert(
-                uuid.clone(),
-                Experiment::new(uuid.clone(), consumers.clone()),
-            );
+            self.messages_state
+                .lock()
+                .await
+                .experiments
+                .insert(uuid, Experiment::new(uuid, consumers.clone()));
         }
 
         for consumer in consumers {
-            self.consumers.start(uuid.clone(), consumer, true).await;
+            self.consumers.start(uuid, consumer, true).await;
         }
 
         self

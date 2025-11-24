@@ -3,7 +3,7 @@ pub mod models;
 pub mod routes;
 pub mod state;
 
-use std::{collections::HashMap, time::UNIX_EPOCH};
+use std::time::UNIX_EPOCH;
 
 use actix_web::{App, HttpServer, web};
 use tokio::sync::Mutex;
@@ -13,7 +13,7 @@ use utoipa_swagger_ui::SwaggerUi;
 use uuid::Uuid;
 
 use crate::{
-    models::{Experiment, Message, MessageEvent},
+    models::{Experiment, MessageEvent},
     state::MessageMapping,
 };
 
@@ -62,7 +62,7 @@ impl AppData {
                 .lock()
                 .await
                 .events
-                .get(&experiment_uuid)
+                .get(experiment_uuid)
                 .cloned()
                 .unwrap_or_default()
         };
@@ -75,7 +75,7 @@ impl AppData {
             .lock()
             .await
             .messages
-            .get(&experiment_uuid)
+            .get(experiment_uuid)
             .cloned()
             .unwrap_or_default();
 
@@ -99,8 +99,7 @@ async fn main() -> std::io::Result<()> {
     let host = std::env::var(HOST_ENV).unwrap_or("0.0.0.0".into());
     let port = std::env::var(APP_PORT_ENV)
         .ok()
-        .map(|x| str::parse(&x).ok())
-        .flatten()
+        .and_then(|x| str::parse(&x).ok())
         .unwrap_or(8080);
 
     HttpServer::new(move || {
