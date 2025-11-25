@@ -37,7 +37,8 @@ def simple_emit_messages(
     message_size: str,
 ):
     request = MessageRequest(
-        blocking=False,
+        async_mode=True,
+        blocking=True,
         body_size=message_size,
         brokers=source.brokers,
         buffering_ms=5,

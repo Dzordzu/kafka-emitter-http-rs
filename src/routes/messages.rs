@@ -140,7 +140,12 @@ async fn send(
                     params.experiment_uuid,
                 );
 
-                let events = state.events.get_mut(&params.experiment_uuid).unwrap();
+                let events = state.events.get_mut(&params.experiment_uuid);
+                if events.is_none() {
+                    return Err(None);
+                }
+
+                let events = events.unwrap();
 
                 events.push(MessageEvent {
                     message_uuid,
@@ -150,7 +155,7 @@ async fn send(
                     event_type: EventType::Sent,
                 });
 
-                delivery_status
+                delivery_status.map_err(|x| Some(x))
             },
         )
         .collect::<Vec<_>>();
@@ -175,7 +180,7 @@ async fn send(
                         tracing::warn!(
                             "Failed to deliver message (async) for {:?}. Reason: {:?}",
                             experiment_uuid,
-                            e.0
+                            e
                         );
                     }
                 }
@@ -198,7 +203,7 @@ async fn send(
                         tracing::warn!(
                             "Failed to deliver message (async) for {:?}. Reason: {:?}",
                             experiment_uuid,
-                            e.0
+                            e
                         );
                     }
                 }
@@ -213,7 +218,7 @@ async fn send(
                     tracing::warn!(
                         "Failed to deliver message {:?}. Reason: {:?}",
                         &message,
-                        e.0
+                        e
                     );
                     handle_message_delivery_failure(&mut message, payload.len());
                 }
@@ -232,7 +237,7 @@ async fn send(
                     tracing::warn!(
                         "Failed to deliver message {:?}. Reason: {:?}",
                         &message,
-                        e.0
+                        e
                     );
                     handle_message_delivery_failure(&mut message, payload.len());
                 }

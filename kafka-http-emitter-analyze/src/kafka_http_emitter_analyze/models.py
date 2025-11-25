@@ -19,7 +19,7 @@ class ExperimentData:
 
 @dataclass
 class MessageRequest:
-    async: bool
+    async_mode: bool
     blocking: bool
     body_size: str
     brokers: str
