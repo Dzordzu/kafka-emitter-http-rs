@@ -10,7 +10,7 @@ from kafka_http_emitter_analyze.emitter_requests import (
     simple_emit_messages,
     get_bytes_size,
     get_kafka_latencies,
-    get_send_receive_latencies
+    get_send_receive_latencies,
 )
 
 logger = getLogger(__name__)
@@ -70,8 +70,18 @@ def main():
     "-w",
     "--wait-for-s",
     type=int,
-    default=12,
+    default=10,
     help="Wait time in seconds after emitting before gathering results",
+)
+@click.option(
+    "-W",
+    "--consumers-wait-for-s",
+    type=float,
+    default=5,
+    help=(
+        "Wait time in seconds before emitting any messages."
+        "We need consumers to start",
+    ),
 )
 @click.option("--message-timeout", type=str, default="10s")
 @click.option("--use-ssl/--no-ssl", type=bool, default=True)
@@ -86,7 +96,8 @@ def simple(
     use_ssl: bool,
     number_of_messages: int,
     message_size: str,
-    wait_for_s: int
+    wait_for_s: int,
+    consumers_wait_for_s: float
 ):
 
     source_kafka = BrokerCfg(
@@ -111,6 +122,8 @@ def simple(
         dest=dest_kafka,
     )
 
+    sleep(consumers_wait_for_s)  # wait for consumers to join
+
     try:
         simple_emit_messages(
             address=address,
@@ -123,15 +136,22 @@ def simple(
         sleep(wait_for_s)
 
         body_sizes = get_bytes_size(address, experiment_uuid)
-        kafka_latencies = get_kafka_latencies(address, experiment_uuid, source_kafka, dest_kafka)
-        send_receive_latency = get_send_receive_latencies(address, experiment_uuid, source_kafka, dest_kafka)
+        kafka_latencies = get_kafka_latencies(
+            address, experiment_uuid, source_kafka, dest_kafka
+        )
+        send_receive_latency = get_send_receive_latencies(
+            address, experiment_uuid, source_kafka, dest_kafka
+        )
 
-        print(json.dumps({
-            "body-size": list_of_ints_stats(body_sizes),
-            "kafka-latency": list_of_ints_stats(kafka_latencies),
-            "send-receive-latency": list_of_ints_stats(send_receive_latency)
-        }))
-        
+        print(
+            json.dumps(
+                {
+                    "body-size": list_of_ints_stats(body_sizes),
+                    "kafka-latency": list_of_ints_stats(kafka_latencies),
+                    "send-receive-latency": list_of_ints_stats(send_receive_latency),
+                }
+            )
+        )
 
     except Exception as e:
         logger.error(e)
