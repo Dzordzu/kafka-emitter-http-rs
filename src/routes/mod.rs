@@ -1,4 +1,4 @@
-use actix_web::{get, Responder};
+use actix_web::{Responder, get};
 
 pub mod experiment;
 pub mod measurements;
@@ -11,7 +11,7 @@ pub mod messages;
     )
 )]
 #[get("/healthz")]
-async fn health() -> impl Responder{
+async fn health() -> impl Responder {
     "OK"
 }
 
@@ -22,6 +22,6 @@ async fn health() -> impl Responder{
     )
 )]
 #[get("/readyz")]
-async fn ready() -> impl Responder{
+async fn ready() -> impl Responder {
     "OK"
 }

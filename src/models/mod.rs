@@ -227,7 +227,7 @@ pub struct SendMessage {
 
     #[serde(default)]
     #[schema(examples(false))]
-    pub blocking: bool
+    pub blocking: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema, IntoParams)]

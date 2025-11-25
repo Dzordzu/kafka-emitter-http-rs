@@ -65,9 +65,7 @@ async fn send(
             params.message_timeout.0.as_millis().to_string(),
         );
 
-    if params.body_size.as_bytes() > 512000 {
-
-    }
+    params.body_size.as_bytes() > 512000;
 
     if params.ssl {
         config.set("security.protocol", "ssl");
@@ -77,12 +75,14 @@ async fn send(
     let producer: FutureProducer = config.create().expect("Producer creation failed");
 
     let mut rng = rand::rng();
-    let payload: String = (0..params.body_size.as_bytes())
-        .map(|_| {
-            let idx = rng.random_range(0..CHARSET.len());
-            char::from(CHARSET[idx])
-        })
-        .collect();
+    let payload: Arc<String> = Arc::new(
+        (0..params.body_size.as_bytes())
+            .map(|_| {
+                let idx = rng.random_range(0..CHARSET.len());
+                char::from(CHARSET[idx])
+            })
+            .collect(),
+    );
 
     {
         let state = data.app_state.lock().await.messages_state.clone();
@@ -171,7 +171,11 @@ async fn send(
     if params.blocking {
         for future in futures {
             if let Err(e) = future.await {
-                tracing::warn!("Failed to deliver message {:?}. Reason: {:?}", &message, e.0);
+                tracing::warn!(
+                    "Failed to deliver message {:?}. Reason: {:?}",
+                    &message,
+                    e.0
+                );
                 handle_message_delivery_failure(&mut message, payload.len());
             }
         }
@@ -186,7 +190,11 @@ async fn send(
                 tracing::warn!("INTERNAL ERROR FOR MESSAGE{:?}: {:?}", &message, e);
                 handle_message_delivery_failure(&mut message, payload.len());
             } else if let Ok(Err(e)) = res {
-                tracing::warn!("Failed to deliver message {:?}. Reason: {:?}", &message, e.0);
+                tracing::warn!(
+                    "Failed to deliver message {:?}. Reason: {:?}",
+                    &message,
+                    e.0
+                );
                 handle_message_delivery_failure(&mut message, payload.len());
             }
         }
