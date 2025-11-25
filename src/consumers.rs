@@ -154,6 +154,7 @@ pub async fn consumer_loop(
                                 bytes_size: bytesize::ByteSize::b(m.payload_len() as u64).into(),
                             },
                             experiment_uuid,
+                            false,
                         );
                     }
 

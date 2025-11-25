@@ -94,6 +94,7 @@ async fn send(
     // This loop is non blocking: all messages will be sent one after the other, without waiting
     // for the results.
     let messages_state = data.app_state.lock().await.messages_state.clone();
+    let async_mode = params.async_mode;
     let futures = (0..params.messages_number)
         .map(|i| {
             (
@@ -138,6 +139,7 @@ async fn send(
                         bytes_size: bytesize::ByteSize::b(payload.len() as u64).into(),
                     },
                     params.experiment_uuid,
+                    async_mode
                 );
 
                 let events = state.events.get_mut(&params.experiment_uuid);
@@ -177,7 +179,7 @@ async fn send(
             tokio::spawn(async move {
                 for future in futures {
                     if let Err(e) = future.await {
-                        tracing::warn!(
+                        tracing::debug!(
                             "Failed to deliver message (async) for {:?}. Reason: {:?}",
                             experiment_uuid,
                             e
@@ -194,13 +196,13 @@ async fn send(
 
                 while let Some(res) = join_set.join_next().await {
                     if let Err(e) = res {
-                        tracing::warn!(
+                        tracing::debug!(
                             "INTERNAL ERROR FOR MESSAGE (async) for {:?}: {:?}",
                             experiment_uuid,
                             e
                         );
                     } else if let Ok(Err(e)) = res {
-                        tracing::warn!(
+                        tracing::debug!(
                             "Failed to deliver message (async) for {:?}. Reason: {:?}",
                             experiment_uuid,
                             e

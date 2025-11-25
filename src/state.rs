@@ -38,7 +38,7 @@ pub struct MessagesState {
 }
 
 impl MessagesState {
-    pub fn insert_message(&mut self, message: Message, experiment_uuid: Uuid) {
+    pub fn insert_message(&mut self, message: Message, experiment_uuid: Uuid, async_mode: bool) {
         if self.experiments.contains_key(&experiment_uuid) {
             self.idx_message_to_experiment
                 .0
@@ -58,7 +58,11 @@ impl MessagesState {
 
             self.events.entry(experiment_uuid).or_default();
         } else {
-            tracing::warn!("Unknown experiment: {experiment_uuid}");
+            if async_mode {
+                tracing::debug!("Unknown experiment: {experiment_uuid}");
+            } else {
+                tracing::warn!("Unknown experiment: {experiment_uuid}");
+            }
         }
     }
 }
