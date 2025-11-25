@@ -20,7 +20,6 @@ logger = getLogger(__name__)
 def main():
     pass
 
-
 @main.command(help="Run a simple test")
 @click.option("-a", "--address", help="kafka-http-emitter-rs address", required=True)
 @click.option(
@@ -83,6 +82,21 @@ def main():
         "We need consumers to start"
     ),
 )
+@click.option(
+    "-M",
+    "--buffering-ms",
+    type=int,
+    default=5,
+    help=(
+        "How often should kafka buffer ms / how often should messagaes be sent"
+    ),
+)
+@click.option(
+    "--blocking/--no-blocking",
+    type=bool,
+    default=False,
+    help="How to send messages. Either one by one (blocking) or in a batch (no-blocking)",
+)
 @click.option("--message-timeout", type=str, default="10s")
 @click.option("--use-ssl/--no-ssl", type=bool, default=True)
 def simple(
@@ -97,7 +111,9 @@ def simple(
     number_of_messages: int,
     message_size: str,
     wait_for_s: int,
-    consumers_wait_for_s: float
+    consumers_wait_for_s: float,
+    blocking: bool,
+    buffering_ms: int
 ):
 
     source_kafka = BrokerCfg(
@@ -131,6 +147,8 @@ def simple(
             source=source_kafka,
             messages_numer=number_of_messages,
             message_size=message_size,
+            blocking=blocking,
+            buffering_ms=buffering_ms
         )
 
         sleep(wait_for_s)

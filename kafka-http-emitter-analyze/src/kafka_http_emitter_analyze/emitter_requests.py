@@ -35,13 +35,16 @@ def simple_emit_messages(
     source: BrokerCfg,
     messages_numer: int,
     message_size: str,
+    blocking: bool,
+    buffering_ms: int
 ):
+
     request = MessageRequest(
         async_mode=True,
-        blocking=True,
+        blocking=blocking,
         body_size=message_size,
         brokers=source.brokers,
-        buffering_ms=5,
+        buffering_ms=buffering_ms,
         experiment_uuid=str(experiment_uuid),
         messages_number=messages_numer,
         ssl=source.ssl,
@@ -115,6 +118,7 @@ def get_kafka_latencies(
         source=source,
         dest=dest,
     )
+
 
 def get_send_receive_latencies(
     address: str,
