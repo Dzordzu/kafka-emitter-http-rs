@@ -189,6 +189,7 @@ pub struct SentMessage {
     /// Sum of the sent bytes
     pub total_sent_bytes: usize,
     pub total_sent_bytes_human_readable: ByteSize,
+    pub delivery_failures: usize,
 }
 
 #[derive(Serialize, Deserialize, ToSchema, Debug, Clone)]
@@ -223,6 +224,10 @@ pub struct SendMessage {
     #[schema(examples(1))]
     pub messages_number: usize,
     pub experiment_uuid: Uuid,
+
+    #[serde(default)]
+    #[schema(examples(false))]
+    pub blocking: bool
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema, IntoParams)]

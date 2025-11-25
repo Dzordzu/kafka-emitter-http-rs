@@ -1,0 +1,35 @@
+{
+   "address": "http://localhost:8080",
+   "source": {
+      "brokers": "localhost:9092",
+      "consumer_group_id": "default-consumer-group",
+      "message_timeout": "10s",
+      "ssl": false,
+      "topic": "default"
+   },
+   "dest": {
+      "brokers": "localhost:9092",
+      "consumer_group_id": "default-consumer-group",
+      "message_timeout": "10s",
+      "ssl": false,
+      "topic": "default"
+   },
+   "messages": [
+      {
+         "mode": "blocking",
+         "number": 100,
+         "size": "2KiB",
+         "every_ms": 100
+      },
+      {
+         "mode": "burst",
+         "number": 200,
+         "size": "10KiB",
+         "buffering_ms": 5
+      }
+   ],
+   "output": {
+      "image": "./output/graph.png",
+      "summary": "./output/summary.json"
+   }
+}

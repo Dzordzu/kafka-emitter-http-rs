@@ -1,4 +1,6 @@
-use actix_web::{post, web};
+use std::sync::Arc;
+
+use actix_web::{Responder, http::StatusCode, post, web};
 use rand::Rng;
 use rdkafka::{
     ClientConfig,
@@ -15,11 +17,35 @@ const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
                         abcdefghijklmnopqrstuvwxyz\
                         0123456789";
 
+fn handle_message_delivery_failure(message: &mut SentMessage, bytes_unsent: usize) {
+    message.delivery_failures += 1;
+    message.total_sent_bytes -= bytes_unsent;
+}
+
+#[derive(thiserror::Error, Debug, Clone)]
+pub enum ResponseError {
+    #[error("No messages have been delivered. See logs for details")]
+    NoMessagesDelivered,
+
+    #[error("Could not find experiment with the provided uuid")]
+    ExperimentNotFound,
+}
+impl actix_web::error::ResponseError for ResponseError {
+    fn status_code(&self) -> StatusCode {
+        match *self {
+            Self::ExperimentNotFound => StatusCode::NOT_FOUND,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
 #[utoipa::path(
     tag = "messages",
     responses(
-        (status = 200, description = "Sent a new message", body = SentMessage),
-        (status = 404, description = "Experiment not found")
+        (status = 200, description = "Sent new messages", body = SentMessage),
+        (status = 404, description = "Experiment not found"),
+        (status = 207, description = "Some messages were ok, some failed", body = SentMessage),
+        (status = 500 , description = "No message has been sent properly")
     )
 )]
 #[post("/")]
@@ -27,7 +53,7 @@ const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
 async fn send(
     params: web::Json<SendMessage>,
     data: web::Data<AppData>,
-) -> actix_web::Result<web::Json<SentMessage>> {
+) -> actix_web::Result<impl Responder, ResponseError> {
     let params = params.into_inner();
 
     let mut config = ClientConfig::new();
@@ -38,6 +64,10 @@ async fn send(
             "message.timeout.ms",
             params.message_timeout.0.as_millis().to_string(),
         );
+
+    if params.body_size.as_bytes() > 512000 {
+
+    }
 
     if params.ssl {
         config.set("security.protocol", "ssl");
@@ -59,7 +89,7 @@ async fn send(
         let state = state.lock().await;
 
         if !state.experiments.contains_key(&params.experiment_uuid) {
-            return Err(actix_web::error::ErrorNotFound("Experiment not found"));
+            return Err(ResponseError::ExperimentNotFound);
         }
     }
 
@@ -84,7 +114,7 @@ async fn send(
                 let delivery_status = producer
                     .send(
                         FutureRecord::to(&params.topic)
-                            .payload(&payload)
+                            .payload(payload.as_str())
                             .key(&format!("msg-{}", i))
                             .headers(
                                 OwnedHeaders::new()
@@ -129,32 +159,47 @@ async fn send(
 
     let total_bytes = payload.len() * params.messages_number;
 
-    let message = SentMessage {
+    let mut message = SentMessage {
         experiment_uuid: params.experiment_uuid,
         bytes_size: payload.len(),
         message_number: params.messages_number,
         total_sent_bytes: total_bytes,
         total_sent_bytes_human_readable: bytesize::ByteSize::b(total_bytes as u64).into(),
+        delivery_failures: 0,
     };
 
-    let mut join_set = tokio::task::JoinSet::new();
-    for future in futures {
-        join_set.spawn(future);
-    }
+    if params.blocking {
+        for future in futures {
+            if let Err(e) = future.await {
+                tracing::warn!("Failed to deliver message {:?}. Reason: {:?}", &message, e.0);
+                handle_message_delivery_failure(&mut message, payload.len());
+            }
+        }
+    } else {
+        let mut join_set = tokio::task::JoinSet::new();
+        for future in futures {
+            join_set.spawn(future);
+        }
 
-    while let Some(res) = join_set.join_next().await {
-        if let Err(e) = res {
-            tracing::warn!("INTERNAL ERROR FOR MESSAGE{:?}: {:?}", &message, e);
-        } else if let Ok(Err(e)) = res {
-            tracing::warn!("Failed to deliver message {:?}. Reason: {:?}", &message, e);
+        while let Some(res) = join_set.join_next().await {
+            if let Err(e) = res {
+                tracing::warn!("INTERNAL ERROR FOR MESSAGE{:?}: {:?}", &message, e);
+                handle_message_delivery_failure(&mut message, payload.len());
+            } else if let Ok(Err(e)) = res {
+                tracing::warn!("Failed to deliver message {:?}. Reason: {:?}", &message, e.0);
+                handle_message_delivery_failure(&mut message, payload.len());
+            }
         }
     }
-    //for future in futures {
 
-    //    if let Err(e) = future.await {
-    //        tracing::warn!("Failed to deliver message {:?}. Reason: {:?}", &message, e);
-    //    }
-    //}
+    message.total_sent_bytes_human_readable =
+        bytesize::ByteSize::b(message.total_sent_bytes as u64).into();
 
-    Ok(web::Json(message))
+    match message.delivery_failures {
+        x if x == 0 => Ok(web::Json(message).customize()),
+        x if x == message.message_number => Err(ResponseError::NoMessagesDelivered),
+        _ => Ok(web::Json(message)
+            .customize()
+            .with_status(StatusCode::MULTI_STATUS)),
+    }
 }

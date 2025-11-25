@@ -1,0 +1,1 @@
+from kafka_http_emitter_analyze.main import main

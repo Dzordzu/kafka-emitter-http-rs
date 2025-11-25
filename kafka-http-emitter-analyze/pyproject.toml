@@ -1,0 +1,24 @@
+[project]
+name = "kafka_http_emitter_analyze"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.11"
+dependencies = [
+    "click>=8.3.1",
+    "matplotlib>=3.10.7",
+    "pydantic>=2.12.4",
+    "requests>=2.32.5",
+    "uuid>=1.30",
+]
+
+[build-system]
+requires = ["uv_build>=0.9.11,<0.10.0"]
+build-backend = "uv_build"
+
+[project.scripts]
+analyze = "kafka_http_emitter_analyze:main"
+
+[dependency-groups]
+dev = [
+    "neovim>=0.3.1",
+]
