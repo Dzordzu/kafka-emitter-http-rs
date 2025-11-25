@@ -228,6 +228,10 @@ pub struct SendMessage {
     #[serde(default)]
     #[schema(examples(false))]
     pub blocking: bool,
+
+    #[serde(rename = "async", default)]
+    #[schema(examples(false))]
+    pub async_mode: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema, IntoParams)]

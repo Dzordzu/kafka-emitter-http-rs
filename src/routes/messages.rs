@@ -166,46 +166,88 @@ async fn send(
         delivery_failures: 0,
     };
 
-    if params.blocking {
-        for future in futures {
-            if let Err(e) = future.await {
-                tracing::warn!(
-                    "Failed to deliver message {:?}. Reason: {:?}",
-                    &message,
-                    e.0
-                );
-                handle_message_delivery_failure(&mut message, payload.len());
-            }
+    if params.async_mode {
+        let experiment_uuid = params.experiment_uuid;
+        if params.blocking {
+            tokio::spawn(async move {
+                for future in futures {
+                    if let Err(e) = future.await {
+                        tracing::warn!(
+                            "Failed to deliver message (async) for {:?}. Reason: {:?}",
+                            experiment_uuid,
+                            e.0
+                        );
+                    }
+                }
+            });
+        } else {
+            tokio::spawn(async move {
+                let mut join_set = tokio::task::JoinSet::new();
+                for future in futures {
+                    join_set.spawn(future);
+                }
+
+                while let Some(res) = join_set.join_next().await {
+                    if let Err(e) = res {
+                        tracing::warn!(
+                            "INTERNAL ERROR FOR MESSAGE (async) for {:?}: {:?}",
+                            experiment_uuid,
+                            e
+                        );
+                    } else if let Ok(Err(e)) = res {
+                        tracing::warn!(
+                            "Failed to deliver message (async) for {:?}. Reason: {:?}",
+                            experiment_uuid,
+                            e.0
+                        );
+                    }
+                }
+            });
         }
+
+        Ok(web::Json(message).customize())
     } else {
-        let mut join_set = tokio::task::JoinSet::new();
-        for future in futures {
-            join_set.spawn(future);
-        }
+        if params.blocking {
+            for future in futures {
+                if let Err(e) = future.await {
+                    tracing::warn!(
+                        "Failed to deliver message {:?}. Reason: {:?}",
+                        &message,
+                        e.0
+                    );
+                    handle_message_delivery_failure(&mut message, payload.len());
+                }
+            }
+        } else {
+            let mut join_set = tokio::task::JoinSet::new();
+            for future in futures {
+                join_set.spawn(future);
+            }
 
-        while let Some(res) = join_set.join_next().await {
-            if let Err(e) = res {
-                tracing::warn!("INTERNAL ERROR FOR MESSAGE{:?}: {:?}", &message, e);
-                handle_message_delivery_failure(&mut message, payload.len());
-            } else if let Ok(Err(e)) = res {
-                tracing::warn!(
-                    "Failed to deliver message {:?}. Reason: {:?}",
-                    &message,
-                    e.0
-                );
-                handle_message_delivery_failure(&mut message, payload.len());
+            while let Some(res) = join_set.join_next().await {
+                if let Err(e) = res {
+                    tracing::warn!("INTERNAL ERROR FOR MESSAGE{:?}: {:?}", &message, e);
+                    handle_message_delivery_failure(&mut message, payload.len());
+                } else if let Ok(Err(e)) = res {
+                    tracing::warn!(
+                        "Failed to deliver message {:?}. Reason: {:?}",
+                        &message,
+                        e.0
+                    );
+                    handle_message_delivery_failure(&mut message, payload.len());
+                }
             }
         }
-    }
 
-    message.total_sent_bytes_human_readable =
-        bytesize::ByteSize::b(message.total_sent_bytes as u64).into();
+        message.total_sent_bytes_human_readable =
+            bytesize::ByteSize::b(message.total_sent_bytes as u64).into();
 
-    match message.delivery_failures {
-        x if x == 0 => Ok(web::Json(message).customize()),
-        x if x == message.message_number => Err(ResponseError::NoMessagesDelivered),
-        _ => Ok(web::Json(message)
-            .customize()
-            .with_status(StatusCode::MULTI_STATUS)),
+        match message.delivery_failures {
+            0 => Ok(web::Json(message).customize()),
+            x if x == message.message_number => Err(ResponseError::NoMessagesDelivered),
+            _ => Ok(web::Json(message)
+                .customize()
+                .with_status(StatusCode::MULTI_STATUS)),
+        }
     }
 }
