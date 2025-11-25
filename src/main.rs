@@ -114,9 +114,14 @@ async fn main() -> std::io::Result<()> {
                     .service(routes::experiment::end)
                     .service(routes::experiment::restore)
                     .service(routes::experiment::get_insights)
+                    .service(routes::experiment::get_config)
                     .service(routes::experiment::list_experiments),
             )
-            .service(scope::scope("/message").service(routes::messages::send))
+            .service(
+                scope::scope("/message")
+                    .service(routes::messages::send)
+                    .service(routes::messages::send_job),
+            )
             .service(
                 scope::scope("/measurements")
                     .service(routes::measurements::kafka_latencies)

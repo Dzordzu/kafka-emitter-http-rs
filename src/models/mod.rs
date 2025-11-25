@@ -199,6 +199,13 @@ pub struct Insights {
     pub events: Vec<MessageEvent>,
 }
 
+#[derive(Serialize, Deserialize, ToSchema, Debug, Clone)]
+pub struct ExperimentOverview{
+    pub experiment: Experiment,
+    pub messages: usize,
+    pub events: usize
+}
+
 pub fn default_buffering_ms() -> u32 {
     5
 }
@@ -232,6 +239,41 @@ pub struct SendMessage {
     #[serde(alias= "async", default)]
     #[schema(examples(false))]
     pub async_mode: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
+pub struct MessageRate {
+    #[schema(examples(10))]
+    pub messages: usize,
+    pub per: Duration
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
+pub struct SendMessageTask {
+    #[schema(examples(5))]
+    #[serde(default = "default_buffering_ms")]
+    pub buffering_ms: u32,
+
+    #[schema(examples(default_brokers))]
+    pub brokers: String,
+
+    #[schema(examples(default_topic))]
+    pub topic: String,
+
+    #[schema(examples(false))]
+    pub ssl: bool,
+
+    pub message_timeout: Duration,
+    pub body_size: ByteSize,
+
+    pub experiment_uuid: Uuid,
+
+    /// Total messages to be sent
+    #[schema(examples(1))]
+    pub messages_number: usize,
+
+    pub message_rate: MessageRate
+
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema, IntoParams)]

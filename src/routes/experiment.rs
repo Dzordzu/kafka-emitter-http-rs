@@ -1,7 +1,6 @@
 use crate::AppData;
 use crate::models::{
-    BeginResponse, EndRequest, EndResponse, Insights, InsightsRequest, NewExperiment,
-    RestoreExperiment,
+    BeginResponse, EndRequest, EndResponse, ExperimentOverview, Insights, InsightsRequest, NewExperiment, RestoreExperiment
 };
 use actix_web::{Responder, delete, get, post, web};
 use uuid::Uuid;
@@ -114,5 +113,32 @@ async fn get_insights(
         messages,
         experiment,
         events,
+    }))
+}
+
+#[utoipa::path(
+    tag = "experiment",
+    params(
+        InsightsRequest
+    ),
+    responses(
+        (status = 200, description = "Get list of ", body = ExperimentOverview)
+    )
+)]
+#[get("/overview")]
+/// Get general information about experiment
+async fn get_config(
+    params: web::Query<InsightsRequest>,
+    data: web::Data<AppData>,
+) -> actix_web::Result<web::Json<ExperimentOverview>> {
+    let (experiment, messages, events) = data
+        .experiment_related_data(&params.0.experiment_uuid)
+        .await
+        .ok_or(actix_web::error::ErrorNotFound("Experiment not found"))?;
+
+    Ok(web::Json(ExperimentOverview {
+        experiment,
+        messages: messages.0.len(),
+        events: events.len(),
     }))
 }
