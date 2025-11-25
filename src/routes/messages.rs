@@ -65,8 +65,6 @@ async fn send(
             params.message_timeout.0.as_millis().to_string(),
         );
 
-    params.body_size.as_bytes() > 512000;
-
     if params.ssl {
         config.set("security.protocol", "ssl");
         config.set("enable.ssl.certificate.verification", "false");

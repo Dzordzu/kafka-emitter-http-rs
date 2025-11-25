@@ -155,6 +155,7 @@ async fn main() -> std::io::Result<()> {
         app.service(SwaggerUi::new("/docs/{_:.*}").url("/api-docs/openapi.json", api))
             .service(web::redirect("/docs", "/docs/"))
     })
+    .shutdown_timeout(3600)
     .bind((host, port))?
     .run()
     .await

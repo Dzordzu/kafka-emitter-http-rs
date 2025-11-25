@@ -80,7 +80,7 @@ def main():
     default=5,
     help=(
         "Wait time in seconds before emitting any messages."
-        "We need consumers to start",
+        "We need consumers to start"
     ),
 )
 @click.option("--message-timeout", type=str, default="10s")
