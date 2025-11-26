@@ -45,7 +45,7 @@ def generate_graphs(
         j - i
         for i, j in zip(sent_messages_bytes_total[:-1], sent_messages_bytes_total[1:])
     ]
-    sent_messages_bytes.insert(0, 0)
+    sent_messages_bytes.insert(0, 0.0)
     kafka_latencies_mean = [
         x.experiment_summary.kafka_latency.mean for x in experiment_summary
     ]
@@ -59,6 +59,9 @@ def generate_graphs(
     send_receive_latencies_median = [
         x.experiment_summary.send_receive_latency.median for x in experiment_summary
     ]
+
+    __import__('pprint').pprint(timestamps)
+    __import__('pprint').pprint(sent_messages_bytes)
 
     fig, axes = plt.subplots(3, 1, figsize=(10, 8), sharex=True)
 
@@ -89,7 +92,6 @@ def generate_graphs(
 
 
 def collect_data(collector_data: CollectorCfg, data: list[ExperimentSummaryPoint]):
-    sleep(collector_data.every_ms / 1000)
     while True:
         sleep(collector_data.every_ms / 1000)
 
@@ -97,6 +99,7 @@ def collect_data(collector_data: CollectorCfg, data: list[ExperimentSummaryPoint
             body_sizes = get_bytes_size(
                 collector_data.address, collector_data.experiment_uuid
             )
+
             kafka_latencies = get_kafka_latencies(
                 collector_data.address,
                 collector_data.experiment_uuid,
@@ -114,9 +117,9 @@ def collect_data(collector_data: CollectorCfg, data: list[ExperimentSummaryPoint
                 ExperimentSummaryPoint(
                     timestamp=datetime.now().timestamp(),
                     experiment_summary=ExperimentSummary(
-                        body_size=list_of_ints_stats(body_sizes),
-                        kafka_latency=list_of_ints_stats(kafka_latencies),
-                        send_receive_latency=list_of_ints_stats(send_receive_latency),
+                        body_size=list_of_ints_stats(body_sizes or [0]),
+                        kafka_latency=list_of_ints_stats(kafka_latencies or [0]),
+                        send_receive_latency=list_of_ints_stats(send_receive_latency or [0]),
                     ),
                 )
             )
@@ -131,8 +134,6 @@ def collect_data(collector_data: CollectorCfg, data: list[ExperimentSummaryPoint
             ):
                 collector_data.should_end = True
 
-        except ValueError:
-            logger.warn("No data (yet?) received")
         except Exception as e:
             logger.exception("Failed to get data")
 
