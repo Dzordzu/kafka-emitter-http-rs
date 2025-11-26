@@ -92,9 +92,6 @@ def collect_data(collector_data: CollectorCfg, data: list[ExperimentSummaryPoint
     while True:
         sleep(collector_data.every_ms / 1000)
 
-        if collector_data.should_end:
-            return
-
         try:
             body_sizes = get_bytes_size(
                 collector_data.address, collector_data.experiment_uuid
@@ -123,12 +120,15 @@ def collect_data(collector_data: CollectorCfg, data: list[ExperimentSummaryPoint
                 )
             )
 
+            if collector_data.should_end:
+                return
+
             if int_similar_percentage(
                 collector_data.expected_all_messages, len(send_receive_latency), 0.05
             ) or int_similar_percentage(
                 collector_data.expected_all_messages, len(kafka_latencies), 0.05
             ):
-                return
+                collector_data.should_end = True
 
         except Exception as e:
             logger.exception("Failed to get data", e)
