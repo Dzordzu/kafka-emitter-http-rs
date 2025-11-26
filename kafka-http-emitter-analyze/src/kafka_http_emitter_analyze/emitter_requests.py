@@ -1,20 +1,26 @@
+import kafka_http_emitter_analyze.typeadapters as typeadapters
 from logging import getLogger
 import requests
 from uuid import UUID
 from kafka_http_emitter_analyze.consts import *
 from kafka_http_emitter_analyze.models import (
+    JobRequest,
     BrokerCfg,
     MessageRequest,
     FilteringRequest,
 )
-from dataclasses import asdict
 
 logger = getLogger(__name__)
 
 
 def new_experiment(address: str, source: BrokerCfg, dest: BrokerCfg) -> UUID:
 
-    new_experiment_body = {"listeners": [asdict(source), asdict(dest)]}
+    new_experiment_body = {
+        "listeners": [
+            typeadapters.BROKER_CFG.dump_python(source),
+            typeadapters.BROKER_CFG.dump_python(dest),
+        ]
+    }
 
     response = requests.post(f"{address}/experiment/", json=new_experiment_body)
     response.raise_for_status()
@@ -29,6 +35,24 @@ def terminate_experiment(address: str, experiment_uuid: UUID):
     response.raise_for_status()
 
 
+def send_single_message_batch(request: MessageRequest, address: str):
+    body = typeadapters.MESSAGE_REQUESTS.dump_python(request)
+    response = requests.post(f"{address}/message/", json=body)
+    if response.status_code != 200:
+        logger.error("Failure for message body: %s", body)
+        logger.error(response.text)
+    response.raise_for_status()
+
+
+def send_job(request: JobRequest, address: str):
+    body = typeadapters.JOB_REQUEST.dump_python(request)
+    response = requests.post(f"{address}/message/job", json=body)
+    if response.status_code != 200:
+        logger.error("Failure for message body: %s", body)
+        logger.error(response.text)
+    response.raise_for_status()
+
+
 def simple_emit_messages(
     address: str,
     experiment_uuid: UUID,
@@ -36,9 +60,8 @@ def simple_emit_messages(
     messages_numer: int,
     message_size: str,
     blocking: bool,
-    buffering_ms: int
+    buffering_ms: int,
 ):
-
     request = MessageRequest(
         async_mode=True,
         blocking=blocking,
@@ -51,13 +74,7 @@ def simple_emit_messages(
         topic=source.topic,
         message_timeout=source.message_timeout,
     )
-    body = asdict(request)
-
-    response = requests.post(f"{address}/message/", json=body)
-    if response.status_code != 200:
-        logger.error("Failure for message body: %s", body)
-        logger.error(response.text)
-    response.raise_for_status()
+    send_single_message_batch(request, address)
 
 
 def get_bytes_size(address: str, experiment_uuid: UUID) -> list[int]:
@@ -80,14 +97,14 @@ def __get_latencies(
 
     body = {
         EXPERIMENT_UUID_KEY: str(experiment_uuid),
-        "source": asdict(
+        "source": typeadapters.FILTERING_REQUEST.dump_python(
             FilteringRequest(
                 brokers=source.brokers,
                 consumer_group=source.consumer_group_id,
                 topic=source.topic,
             )
         ),
-        "dest": asdict(
+        "dest": typeadapters.FILTERING_REQUEST.dump_python(
             FilteringRequest(
                 brokers=dest.brokers,
                 consumer_group=dest.consumer_group_id,

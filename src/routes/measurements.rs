@@ -12,9 +12,10 @@ use crate::AppData;
         (status = 404, description = "Experiment not found"),
     )
 )]
+/// Get messages sizes
 #[post("/bytes-size")]
 async fn messaged_bytes_size(
-    params: web::Json<StatsRequest>,
+    params: web::Json<BytesSizeRequest>,
     data: web::Data<AppData>,
 ) -> actix_web::Result<web::Json<Vec<u128>>> {
     let (_, messages, _) = {

@@ -1,6 +1,7 @@
 use crate::AppData;
 use crate::models::{
-    BeginResponse, EndRequest, EndResponse, ExperimentOverview, Insights, InsightsRequest, NewExperiment, RestoreExperiment
+    BeginResponse, EndRequest, EndResponse, ExperimentOverview, Insights, InsightsRequest,
+    NewExperiment, RestoreExperiment,
 };
 use actix_web::{Responder, delete, get, post, web};
 use uuid::Uuid;
@@ -61,6 +62,31 @@ async fn end(body: web::Json<EndRequest>, data: web::Data<AppData>) -> impl Resp
     }
 
     web::Json(EndResponse { experiment_uuid })
+}
+
+#[utoipa::path(
+    tag = "experiment",
+    responses(
+        (status = 200, description = "Delete all experiment data from all experiments")
+    )
+)]
+#[delete("/reset-all")]
+/// Delete experiment and its data
+async fn reset(data: web::Data<AppData>) -> impl Responder {
+    {
+        let mut data = data.app_state.lock().await;
+
+        let experiments_uuids: Vec<Uuid> = {
+            let msg_state = data.messages_state.lock().await;
+            msg_state.experiments.keys().cloned().collect()
+        };
+
+        for experiment_uuid in experiments_uuids {
+            data.end_experiment(experiment_uuid).await;
+        }
+    }
+
+    "Experiments cleared"
 }
 
 #[utoipa::path(

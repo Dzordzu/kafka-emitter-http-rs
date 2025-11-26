@@ -1,5 +1,8 @@
 {
+   "experiment_name": "testing kafka experiment",
    "address": "http://localhost:8080",
+   "wait_for_consumers_s": 5,
+   "query_every_ms": 100,
    "source": {
       "brokers": "localhost:9092",
       "consumer_group_id": "default-consumer-group",
@@ -16,20 +19,40 @@
    },
    "messages": [
       {
-         "mode": "blocking",
-         "number": 100,
-         "size": "2KiB",
-         "every_ms": 100
+         "what": "batch",
+         "body_size": "100KiB",
+         "buffering_ms": 5,
+         "messages_number": 10000
+         
       },
       {
-         "mode": "burst",
-         "number": 200,
-         "size": "10KiB",
-         "buffering_ms": 5
+         "what": "job",
+         "messages_number": 1000000,
+         "message_timeout": "10s",
+         "body_size": "2KiB",
+         "message_rate": {
+            "messages": 1,
+            "per_ms": 1
+         }
+      },
+      {
+         "what": "wait",
+         "time_ms": 4000
+      },
+      {
+         "what": "batch",
+         "body_size": "10KiB",
+         "buffering_ms": 5,
+         "messages_number": 200
+         
+      },
+      {
+         "what": "wait",
+         "time_ms": 10000
       }
    ],
    "output": {
-      "image": "./output/graph.png",
-      "summary": "./output/summary.json"
+      "image": "./output/experiment/images.png",
+      "summary": "./output/experiment/summary.json"
    }
 }

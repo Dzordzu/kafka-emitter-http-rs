@@ -112,6 +112,7 @@ async fn main() -> std::io::Result<()> {
                 scope::scope("/experiment")
                     .service(routes::experiment::begin)
                     .service(routes::experiment::end)
+                    .service(routes::experiment::reset)
                     .service(routes::experiment::restore)
                     .service(routes::experiment::get_insights)
                     .service(routes::experiment::get_config)

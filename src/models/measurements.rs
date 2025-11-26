@@ -38,7 +38,7 @@ pub struct SendReceiveLatencyRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema, IntoParams)]
-pub struct StatsRequest {
+pub struct BytesSizeRequest {
     pub experiment_uuid: Uuid,
 }
 
