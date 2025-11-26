@@ -60,9 +60,6 @@ def generate_graphs(
         x.experiment_summary.send_receive_latency.median for x in experiment_summary
     ]
 
-    __import__('pprint').pprint(timestamps)
-    __import__('pprint').pprint(sent_messages_bytes)
-
     fig, axes = plt.subplots(3, 1, figsize=(10, 8), sharex=True)
 
     fig.suptitle(f"Summary for {name}")
