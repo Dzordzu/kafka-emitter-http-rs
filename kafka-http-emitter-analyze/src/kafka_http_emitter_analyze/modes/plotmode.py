@@ -131,8 +131,8 @@ def collect_data(collector_data: CollectorCfg, data: list[ExperimentSummaryPoint
             ):
                 collector_data.should_end = True
 
-        except Exception as e:
-            logger.exception("Failed to get data")
+        except Exception:
+            logger.exception("Failed to get data. The timeout may have happened!")
 
 
 def calculate_expected_messages(config: ConfigFile) -> int:
@@ -211,7 +211,7 @@ def plotmode(file: FilePath):
             case "wait":
                 sleep(message.time_ms / 1000)
 
-    collector_data.should_end = True
+    data_collector_thread.join(config.wait_max_after_publishing_s)
     sleep(config.query_every_ms / 1000)
     terminate_experiment(config.address, experiment_uuid)
 

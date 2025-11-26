@@ -95,6 +95,7 @@ class ConfigFile:
         Annotated[ConfigJob | ConfigWait | ConfigBatch, Field(discriminator="what")]
     ]
     wait_for_consumers_s: float | int = Field(default = 5)
+    wait_max_after_publishing_s: float | int = Field(default = 60)
 
 @dataclass
 class JobRequest:
