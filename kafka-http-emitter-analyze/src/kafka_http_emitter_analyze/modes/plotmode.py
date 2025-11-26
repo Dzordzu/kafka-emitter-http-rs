@@ -89,6 +89,7 @@ def generate_graphs(
 
 
 def collect_data(collector_data: CollectorCfg, data: list[ExperimentSummaryPoint]):
+    sleep(collector_data.every_ms / 1000)
     while True:
         sleep(collector_data.every_ms / 1000)
 
