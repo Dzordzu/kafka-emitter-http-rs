@@ -20,10 +20,14 @@
    "messages": [
       {
          "what": "batch",
-         "body_size": "100KiB",
+         "body_size": "1KiB",
          "buffering_ms": 5,
-         "messages_number": 10000
+         "messages_number": 50000
          
+      },
+      {
+         "what": "wait",
+         "time_ms": 2000
       },
       {
          "what": "job",

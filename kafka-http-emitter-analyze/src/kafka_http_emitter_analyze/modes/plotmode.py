@@ -130,8 +130,10 @@ def collect_data(collector_data: CollectorCfg, data: list[ExperimentSummaryPoint
             ):
                 collector_data.should_end = True
 
+        except ValueError:
+            logger.warn("No data (yet?) received")
         except Exception as e:
-            logger.exception("Failed to get data", e)
+            logger.exception("Failed to get data")
 
 
 def calculate_expected_messages(config: ConfigFile) -> int:
@@ -226,5 +228,3 @@ def plotmode(file: FilePath):
         )
 
     generate_graphs(config.experiment_name, config.output.image, experiment_summary)
-
-    pass
