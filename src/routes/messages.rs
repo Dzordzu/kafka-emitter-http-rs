@@ -321,7 +321,6 @@ async fn send_job(
         let mut join_set = tokio::task::JoinSet::new();
 
         for _ in 0..iterations {
-
             let desired_messages_batch = std::cmp::min(
                 params.messages_number - total_messages,
                 params.message_rate.messages,

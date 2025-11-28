@@ -1,11 +1,22 @@
+use jemallocator::Jemalloc;
+
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
+
 pub mod consumers;
 pub mod models;
 pub mod routes;
 pub mod state;
 
-use std::time::UNIX_EPOCH;
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::UNIX_EPOCH,
+};
 
-use actix_web::{App, HttpServer, web};
+use actix_web::{App, HttpServer, dev::ServerHandle, web};
 use tokio::sync::Mutex;
 use utoipa::openapi::tag::TagBuilder;
 use utoipa_actix_web::{AppExt, scope};
@@ -32,9 +43,39 @@ pub fn get_now_millis() -> u128 {
         .as_millis()
 }
 
+#[derive(Default, Debug)]
+pub struct StopHandle {
+    inner: parking_lot::Mutex<Option<ServerHandle>>,
+}
+
+impl StopHandle {
+    /// Sets the server handle to stop.
+    pub(crate) fn register(&self, handle: ServerHandle) {
+        *self.inner.lock() = Some(handle);
+    }
+
+    /// Sends stop signal through contained server handle.
+    pub(crate) fn stop(&self, graceful: bool) {
+        #[allow(clippy::let_underscore_future)]
+        let _ = self.inner.lock().as_ref().unwrap().stop(graceful);
+    }
+}
+
 #[derive(Debug)]
 pub struct AppData {
     pub app_state: Mutex<crate::state::State>,
+    pub should_tokio_finish: Arc<AtomicBool>,
+    pub stop_handle: StopHandle,
+}
+
+impl AppData {
+    pub fn new(should_tokio_finish: Arc<AtomicBool>) -> Self {
+        AppData {
+            app_state: Mutex::new(crate::state::State::new()),
+            stop_handle: StopHandle::default(),
+            should_tokio_finish,
+        }
+    }
 }
 
 impl AppData {
@@ -83,31 +124,39 @@ impl AppData {
     }
 }
 
-impl Default for AppData {
-    fn default() -> Self {
-        Self {
-            app_state: Mutex::new(crate::state::State::new()),
+fn main() -> std::io::Result<()> {
+    tracing_subscriber::fmt().init();
+    loop {
+        let should_tokio_finish = Arc::new(AtomicBool::new(true));
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(main_async(should_tokio_finish.clone()))?;
+
+        if should_tokio_finish.load(Ordering::Relaxed) {
+            return Ok(());
         }
     }
 }
 
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
-    tracing_subscriber::fmt().init();
-
-    let app_data = web::Data::new(AppData::default());
+async fn main_async(should_tokio_finish: Arc<AtomicBool>) -> std::io::Result<()> {
+    let app_data = web::Data::new(AppData::new(should_tokio_finish));
     let host = std::env::var(HOST_ENV).unwrap_or("0.0.0.0".into());
     let port = std::env::var(APP_PORT_ENV)
         .ok()
         .and_then(|x| str::parse(&x).ok())
         .unwrap_or(8080);
 
-    HttpServer::new(move || {
+    let app_data_clone = app_data.clone();
+    let srv = HttpServer::new(move || {
         let (app, mut api) = App::new()
-            .app_data(app_data.clone())
+            .app_data(app_data_clone.clone())
             .into_utoipa_app()
             .service(routes::ready)
             .service(routes::health)
+            .service(
+                scope::scope("/runtime")
+                    .service(routes::restart_runtime)
+                    .service(routes::stop_runtime),
+            )
             .service(
                 scope::scope("/experiment")
                     .service(routes::experiment::begin)
@@ -153,7 +202,7 @@ async fn main() -> std::io::Result<()> {
 
         let measure_tag = TagBuilder::new()
             .name("measurements")
-            .description(Some("Endpoints to retrive statistical data from events"))
+            .description(Some("Endpoints to retrive statistical data from experiments events"))
             .build();
 
         api.tags = Some(vec![experiments_tag, messages_tag, measure_tag]);
@@ -161,8 +210,10 @@ async fn main() -> std::io::Result<()> {
         app.service(SwaggerUi::new("/docs/{_:.*}").url("/api-docs/openapi.json", api))
             .service(web::redirect("/docs", "/docs/"))
     })
-    .shutdown_timeout(3600)
     .bind((host, port))?
-    .run()
-    .await
+    .run();
+
+    app_data.stop_handle.register(srv.handle());
+
+    srv.await
 }

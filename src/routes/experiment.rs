@@ -71,7 +71,7 @@ async fn end(body: web::Json<EndRequest>, data: web::Data<AppData>) -> impl Resp
     )
 )]
 #[delete("/reset-all")]
-/// Delete experiment and its data
+/// Delete all experiments and their data
 async fn reset(data: web::Data<AppData>) -> impl Responder {
     {
         let mut data = data.app_state.lock().await;
@@ -82,8 +82,18 @@ async fn reset(data: web::Data<AppData>) -> impl Responder {
         };
 
         for experiment_uuid in experiments_uuids {
+            // Needed to stop consumers
             data.end_experiment(experiment_uuid).await;
         }
+
+        // Just to make sure that there is nothing left
+        let mut msg_state = data.messages_state.lock().await;
+        msg_state.experiments.clear();
+        msg_state.idx_message_to_experiment.0.clear();
+        msg_state.idx_experiment_to_messages.0.clear();
+        msg_state.messages.clear();
+        msg_state.events.clear();
+
     }
 
     "Experiments cleared"

@@ -3,6 +3,10 @@ from statistics import mean, median
 
 
 def list_of_ints_stats(input: list[int]) -> IntListSummary:
+    input = [x for x in input if x != 0]
+    if not input:
+        input = [0]
+
     return IntListSummary(
         min=min(input),
         max=max(input),

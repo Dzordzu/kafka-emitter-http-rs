@@ -3,7 +3,7 @@
    "address": "http://localhost:8080",
    "wait_for_consumers_s": 5,
    "query_every_ms": 100,
-   "wait_max_after_publishing_s": 100,
+   "wait_max_after_publishing_s": 3600,
    "source": {
       "brokers": "localhost:9092",
       "consumer_group_id": "default-consumer-group",
@@ -32,11 +32,11 @@
       },
       {
          "what": "job",
-         "messages_number": 10000,
+         "messages_number": 1500000,
          "message_timeout": "10s",
          "body_size": "2KiB",
          "message_rate": {
-            "messages": 1,
+            "messages": 10,
             "per_ms": 1
          }
       },
