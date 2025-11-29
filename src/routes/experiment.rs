@@ -34,7 +34,8 @@ async fn begin(body: web::Json<NewExperiment>, data: web::Data<AppData>) -> impl
     )
 )]
 #[post("/restore")]
-/// Restore existing experiment. Tries to read messages from the start
+/// Restore existing experiment. Tries to read messages from the start. It won't work if
+/// messages have been already read
 async fn restore(body: web::Json<RestoreExperiment>, data: web::Data<AppData>) -> impl Responder {
     let mut data = data.app_state.lock().await;
     let experiment_uuid = body.experiment_uuid;
@@ -52,7 +53,7 @@ async fn restore(body: web::Json<RestoreExperiment>, data: web::Data<AppData>) -
     )
 )]
 #[delete("/")]
-/// Delete experiment and its data
+/// Delete experiment and its events data. Keep the messages
 async fn end(body: web::Json<EndRequest>, data: web::Data<AppData>) -> impl Responder {
     let experiment_uuid = body.0.experiment_uuid;
 
